@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Gilson Passos Construtora — Sistema Financeiro</title>
+  <meta name="description" content="Sistema de Controle Financeiro e Operacional da Gilson Passos Construtora" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <link rel="stylesheet" href="style.css?v=3" />
+</head>
+<body>
+
+<!-- LOGIN SCREEN -->
+<div id="loginScreen" class="login-screen">
+  <div class="login-bg"></div>
+  <div class="login-card">
+    <div class="login-logo">
+      <div class="logo-icon">🏗️</div>
+      <h1>GILSON PASSOS</h1>
+      <p>CONSTRUTORA</p>
+    </div>
+    <div class="login-form">
+      <h2>Acesso ao Sistema</h2>
+      <p class="login-subtitle">Controle Financeiro e Operacional</p>
+      <div class="login-supa-status">
+        <span class="status-indicator connected" id="loginSupaStatusIndicator"></span>
+        <span id="loginSupaStatusText">Conectado ao Supabase</span>
+      </div>
+      <div class="form-group">
+        <label for="loginEmail">E-mail</label>
+        <input type="email" id="loginEmail" placeholder="seu@gmail.com" autocomplete="email" />
+      </div>
+      <div class="form-group">
+        <label for="loginPassword">Senha</label>
+        <input type="password" id="loginPassword" placeholder="••••••••" autocomplete="current-password" />
+      </div>
+      <div id="loginError" class="login-error hidden">E-mail ou senha incorretos.</div>
+      <button id="loginBtn" class="btn-primary btn-full" onclick="doLogin()">Entrar</button>
+      <p class="login-hint">Primeira vez? <a href="#" onclick="showSetup()">Configurar acesso</a></p>
+    </div>
+  </div>
+</div>
+
+<!-- SETUP SCREEN (first time) -->
+<div id="setupScreen" class="login-screen hidden">
+  <div class="login-bg"></div>
+  <div class="login-card">
+    <div class="login-logo">
+      <div class="logo-icon">🔐</div>
+      <h1>CONFIGURAR ACESSO</h1>
+      <p>Primeiro Acesso</p>
+    </div>
+    <div class="login-form">
+      <h2>Criar Conta</h2>
+      <p class="login-subtitle">Configure seu e-mail e senha de acesso</p>
+      <div class="form-group">
+        <label for="setupEmail">E-mail</label>
+        <input type="email" id="setupEmail" placeholder="seu@gmail.com" />
+      </div>
+      <div class="form-group">
+        <label for="setupPassword">Senha</label>
+        <input type="password" id="setupPassword" placeholder="Mínimo 6 caracteres" />
+      </div>
+      <div class="form-group">
+        <label for="setupPasswordConfirm">Confirmar Senha</label>
+        <input type="password" id="setupPasswordConfirm" placeholder="Repita a senha" />
+      </div>
+      <div id="setupError" class="login-error hidden"></div>
+      <button class="btn-primary btn-full" onclick="doSetup()">Criar Conta</button>
+      <p class="login-hint"><a href="#" onclick="showLogin()">← Voltar ao login</a></p>
+    </div>
+  </div>
+</div>
+
+<!-- MAIN APP -->
+<div id="app" class="app hidden">
+  <!-- SIDEBAR -->
+  <aside id="sidebar" class="sidebar">
+    <div class="sidebar-header">
+      <div class="sidebar-logo">
+        <span class="logo-emoji">🏗️</span>
+        <div class="logo-text">
+          <span class="logo-title">GILSON PASSOS</span>
+          <span class="logo-sub">CONSTRUTORA</span>
+        </div>
+      </div>
+      <button class="sidebar-toggle" onclick="toggleSidebar()" title="Recolher menu">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h18M3 6h18M3 18h18"/></svg>
+      </button>
+    </div>
+
+    <div class="sidebar-content">
+      <!-- EMPRESARIAL -->
+      <div class="nav-section">
+        <div class="nav-section-header" onclick="toggleSection('empresarial')">
+          <span class="section-icon">🏢</span>
+          <span class="section-label">MÓDULO EMPRESARIAL</span>
+          <span class="section-arrow" id="arrow-empresarial">▼</span>
+        </div>
+        <div class="nav-items" id="section-empresarial">
+          <a class="nav-item active" onclick="navigate('dashboard')" data-page="dashboard">
+            <span class="nav-icon">📊</span><span class="nav-label">Dashboard</span>
+          </a>
+          <a class="nav-item" onclick="navigate('obras')" data-page="obras">
+            <span class="nav-icon">🏚️</span><span class="nav-label">Obras / Projetos</span>
+          </a>
+          <a class="nav-item" onclick="navigate('recebimentos')" data-page="recebimentos">
+            <span class="nav-icon">💰</span><span class="nav-label">Recebimentos</span>
+          </a>
+          <a class="nav-item" onclick="navigate('limites')" data-page="limites">
+            <span class="nav-icon">📈</span><span class="nav-label">Limites Fiscais</span>
+          </a>
+          <a class="nav-item" onclick="navigate('caixa')" data-page="caixa">
+            <span class="nav-icon">💵</span><span class="nav-label">Caixa em Espécie</span>
+          </a>
+          <a class="nav-item" onclick="navigate('bancos')" data-page="bancos">
+            <span class="nav-icon">🏦</span><span class="nav-label">Bancos</span>
+          </a>
+          <a class="nav-item" onclick="navigate('funcionarios')" data-page="funcionarios">
+            <span class="nav-icon">👷</span><span class="nav-label">Funcionários</span>
+          </a>
+          <a class="nav-item" onclick="navigate('ponto')" data-page="ponto">
+            <span class="nav-icon">📅</span><span class="nav-label">Cartão de Ponto</span>
+          </a>
+          <a class="nav-item" onclick="navigate('pagamentos')" data-page="pagamentos">
+            <span class="nav-icon">💳</span><span class="nav-label">Folha Semanal</span>
+          </a>
+          <a class="nav-item" onclick="navigate('despesas')" data-page="despesas">
+            <span class="nav-icon">📋</span><span class="nav-label">Despesas</span>
+          </a>
+          <a class="nav-item" onclick="navigate('checklist')" data-page="checklist">
+            <span class="nav-icon">✅</span><span class="nav-label">Checklist Semanal</span>
+          </a>
+        </div>
+      </div>
+
+      <!-- PESSOAL -->
+      <div class="nav-section">
+        <div class="nav-section-header" onclick="toggleSection('pessoal')">
+          <span class="section-icon">🏠</span>
+          <span class="section-label">MÓDULO PESSOAL</span>
+          <span class="section-arrow" id="arrow-pessoal">▼</span>
+        </div>
+        <div class="nav-items" id="section-pessoal">
+          <a class="nav-item" onclick="navigate('pessoal-dashboard')" data-page="pessoal-dashboard">
+            <span class="nav-icon">📊</span><span class="nav-label">Dashboard Casa</span>
+          </a>
+          <a class="nav-item" onclick="navigate('gastos-fixos')" data-page="gastos-fixos">
+            <span class="nav-icon">🔒</span><span class="nav-label">Gastos Fixos</span>
+          </a>
+          <a class="nav-item" onclick="navigate('gastos-variaveis')" data-page="gastos-variaveis">
+            <span class="nav-icon">🛒</span><span class="nav-label">Gastos Variáveis</span>
+          </a>
+        </div>
+      </div>
+
+      <!-- CONFIGURAÇÕES -->
+      <div class="nav-section">
+        <div class="nav-section-header" onclick="toggleSection('config')">
+          <span class="section-icon">⚙️</span>
+          <span class="section-label">CONFIGURAÇÕES</span>
+          <span class="section-arrow" id="arrow-config">▼</span>
+        </div>
+        <div class="nav-items" id="section-config">
+          <a class="nav-item" onclick="navigate('configuracoes')" data-page="configuracoes">
+            <span class="nav-icon">🎨</span><span class="nav-label">Temas e Aparência</span>
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <div class="sidebar-footer">
+      <div class="user-info">
+        <div class="user-avatar">GP</div>
+        <div class="user-details">
+          <span class="user-name" id="sidebarUserName">Usuário</span>
+          <span class="user-role">Administrador</span>
+        </div>
+      </div>
+      <button class="btn-logout" onclick="doLogout()" title="Sair">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16,17 21,12 16,7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+      </button>
+    </div>
+  </aside>
+
+  <!-- MAIN CONTENT -->
+  <main class="main-content" id="mainContent">
+    <div id="pageContent"></div>
+  </main>
+</div>
+
+<!-- MODAL -->
+<div id="modal" class="modal-overlay hidden" onclick="closeModalOutside(event)">
+  <div class="modal-box" id="modalBox">
+    <div class="modal-header">
+      <h3 id="modalTitle">Modal</h3>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body" id="modalBody"></div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div id="toast" class="toast hidden"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="supabase.js?v=8"></script>
+<script src="app.js?v=8"></script>
+</body>
+</html>
