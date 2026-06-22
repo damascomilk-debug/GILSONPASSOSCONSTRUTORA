@@ -56,14 +56,14 @@ async function testSupabaseConnection(url, key) {
     const tempClient = supabase.createClient(url, key);
     // Tenta selecionar um registro simples da tabela de sequências para verificar a autorização
     const { data, error } = await tempClient.from('sistema_sequencias').select('chave').limit(1);
-    
+
     if (error) {
       // Se o erro for de tabela inexistente, a credencial é válida, mas as tabelas ainda não foram criadas
       if (error.code === 'PGRST116' || error.message.includes('does not exist')) {
-        return { 
-          success: true, 
-          tablesMissing: true, 
-          message: "Conectado com sucesso! Mas atenção: as tabelas do banco ainda não foram criadas. Execute o script SQL." 
+        return {
+          success: true,
+          tablesMissing: true,
+          message: "Conectado com sucesso! Mas atenção: as tabelas do banco ainda não foram criadas. Execute o script SQL."
         };
       }
       return { success: false, message: error.message };
@@ -180,10 +180,10 @@ async function syncFromSupabase() {
     orcamentoMensal: [],
     checklistTopicos: [],
     checklistTarefas: [],
-    seq: { 
-      bancos: 1, obras: 1, recebimentos: 1, caixaMovimentos: 1, funcionarios: 1, 
-      semanaPagamento: 1, registrosPonto: 1, empreitadas: 1, pagamentos: 1, 
-      despesas: 1, gastosPessoais: 1, orcamentoMensal: 1, checklistTopicos: 1, checklistTarefas: 1 
+    seq: {
+      bancos: 1, obras: 1, recebimentos: 1, caixaMovimentos: 1, funcionarios: 1,
+      semanaPagamento: 1, registrosPonto: 1, empreitadas: 1, pagamentos: 1,
+      despesas: 1, gastosPessoais: 1, orcamentoMensal: 1, checklistTopicos: 1, checklistTarefas: 1
     }
   };
 
@@ -207,7 +207,7 @@ async function syncFromSupabase() {
   // Se o banco remoto estiver totalmente vazio, mas o local tiver dados, faz o upload em vez de sobrescrever
   const localHasData = (DB.obras && DB.obras.length > 0) || (DB.bancos && DB.bancos.length > 0) || (DB.recebimentos && DB.recebimentos.length > 0) || (DB.funcionarios && DB.funcionarios.length > 0);
   const remoteHasData = newDB.obras.length > 0 || newDB.bancos.length > 0 || newDB.recebimentos.length > 0 || newDB.funcionarios.length > 0;
-  
+
   if (localHasData && !remoteHasData) {
     console.log("Banco remoto vazio. Sincronizando dados locais para a nuvem...");
     await syncToSupabase();
