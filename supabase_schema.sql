@@ -172,3 +172,68 @@ CREATE TABLE IF NOT EXISTS "checklistTarefas" (
   "concluida" boolean DEFAULT false,
   "criadoEm" text
 );
+
+-- ============================================================
+-- Políticas de Segurança (Row Level Security - RLS)
+-- Habilita o RLS e define as políticas de acesso autenticado
+-- ============================================================
+
+ALTER TABLE "sistema_sequencias" ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Permitir tudo para autenticados" ON "sistema_sequencias";
+CREATE POLICY "Permitir tudo para autenticados" ON "sistema_sequencias" FOR ALL TO authenticated USING (true) WITH CHECK (true);
+
+ALTER TABLE "obras" ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Permitir tudo para autenticados" ON "obras";
+CREATE POLICY "Permitir tudo para autenticados" ON "obras" FOR ALL TO authenticated USING (true) WITH CHECK (true);
+
+ALTER TABLE "bancos" ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Permitir tudo para autenticados" ON "bancos";
+CREATE POLICY "Permitir tudo para autenticados" ON "bancos" FOR ALL TO authenticated USING (true) WITH CHECK (true);
+
+ALTER TABLE "recebimentos" ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Permitir tudo para autenticados" ON "recebimentos";
+CREATE POLICY "Permitir tudo para autenticados" ON "recebimentos" FOR ALL TO authenticated USING (true) WITH CHECK (true);
+
+ALTER TABLE "caixaMovimentos" ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Permitir tudo para autenticados" ON "caixaMovimentos";
+CREATE POLICY "Permitir tudo para autenticados" ON "caixaMovimentos" FOR ALL TO authenticated USING (true) WITH CHECK (true);
+
+ALTER TABLE "funcionarios" ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Permitir tudo para autenticados" ON "funcionarios";
+CREATE POLICY "Permitir tudo para autenticados" ON "funcionarios" FOR ALL TO authenticated USING (true) WITH CHECK (true);
+
+ALTER TABLE "semanaPagamento" ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Permitir tudo para autenticados" ON "semanaPagamento";
+CREATE POLICY "Permitir tudo para autenticados" ON "semanaPagamento" FOR ALL TO authenticated USING (true) WITH CHECK (true);
+
+ALTER TABLE "registrosPonto" ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Permitir tudo para autenticados" ON "registrosPonto";
+CREATE POLICY "Permitir tudo para autenticados" ON "registrosPonto" FOR ALL TO authenticated USING (true) WITH CHECK (true);
+
+ALTER TABLE "empreitadas" ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Permitir tudo para autenticados" ON "empreitadas";
+CREATE POLICY "Permitir tudo para autenticados" ON "empreitadas" FOR ALL TO authenticated USING (true) WITH CHECK (true);
+
+ALTER TABLE "pagamentos" ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Permitir tudo para autenticados" ON "pagamentos";
+CREATE POLICY "Permitir tudo para autenticados" ON "pagamentos" FOR ALL TO authenticated USING (true) WITH CHECK (true);
+
+ALTER TABLE "despesas" ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Permitir tudo para autenticados" ON "despesas";
+CREATE POLICY "Permitir tudo para autenticados" ON "despesas" FOR ALL TO authenticated USING (true) WITH CHECK (true);
+
+ALTER TABLE "gastosPessoais" ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Permitir tudo para autenticados" ON "gastosPessoais";
+CREATE POLICY "Permitir tudo para autenticados" ON "gastosPessoais" FOR ALL TO authenticated USING (true) WITH CHECK (true);
+
+ALTER TABLE "orcamentoMensal" ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Permitir tudo para autenticados" ON "orcamentoMensal";
+CREATE POLICY "Permitir tudo para autenticados" ON "orcamentoMensal" FOR ALL TO authenticated USING (true) WITH CHECK (true);
+
+ALTER TABLE "checklistTopicos" ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Permitir tudo para autenticados" ON "checklistTopicos";
+CREATE POLICY "Permitir tudo para autenticados" ON "checklistTopicos" FOR ALL TO authenticated USING (true) WITH CHECK (true);
+
+ALTER TABLE "checklistTarefas" ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Permitir tudo para autenticados" ON "checklistTarefas";
+CREATE POLICY "Permitir tudo para autenticados" ON "checklistTarefas" FOR ALL TO authenticated USING (true) WITH CHECK (true);
