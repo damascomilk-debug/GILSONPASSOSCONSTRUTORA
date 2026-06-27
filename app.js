@@ -22,6 +22,7 @@ function loadDB() {
 let _syncTimeout = null;
 function saveDB(db) {
   localStorage.setItem(DB_KEY, JSON.stringify(db));
+  localStorage.setItem(DB_KEY + '_last_local_edit', new Date().toISOString());
   if (typeof supabaseClient !== 'undefined' && supabaseClient) {
     if (_syncTimeout) clearTimeout(_syncTimeout);
     _syncTimeout = setTimeout(async () => {
@@ -2986,6 +2987,8 @@ function importarDados(event) {
       confirm_action("Atenção: Importar este arquivo substituirá TODOS os dados atuais do sistema. Deseja continuar?", () => {
         // Salva os dados importados no localStorage
         localStorage.setItem(DB_KEY, JSON.stringify(backup.db));
+        localStorage.setItem(DB_KEY + '_last_local_edit', new Date().toISOString());
+        localStorage.setItem(DB_KEY + '_last_sync', new Date().toISOString());
         if (backup.auth) {
           localStorage.setItem(AUTH_KEY, JSON.stringify(backup.auth));
         }

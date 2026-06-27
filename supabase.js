@@ -50,6 +50,56 @@ if (document.readyState === 'loading') {
   initSupabase();
 }
 
+function backupLocalDB() {
+  try {
+    const raw = localStorage.getItem(DB_KEY);
+    if (raw) {
+      localStorage.setItem(DB_KEY + '_backup', raw);
+      localStorage.setItem(DB_KEY + '_backup_time', new Date().toISOString());
+      console.log("GP Sistema: Backup local preventivo criado com sucesso.");
+    }
+  } catch (e) {
+    console.error("GP Sistema: Falha ao criar backup local preventivo:", e);
+  }
+}
+
+function confirmSyncConflict() {
+  return new Promise((resolve) => {
+    if (typeof openModal === 'undefined') {
+      const resp = confirm("Alterações locais não sincronizadas foram detectadas. Deseja ENVIAR seus dados locais para o Supabase? (Se cancelar, eles serão substituídos pelos dados da nuvem).");
+      resolve(resp);
+      return;
+    }
+    
+    openModal('Conflito de Sincronização', `
+      <div style="color: var(--text-primary); font-family: 'Inter', sans-serif;">
+        <p style="margin-bottom: 15px; font-weight: 600; font-size: 1.1rem; display: flex; align-items: center; gap: 8px;">
+          ⚠️ Alterações locais pendentes!
+        </p>
+        <p style="margin-bottom: 20px; color: var(--text-secondary); font-size: 0.9rem; line-height: 1.5;">
+          Você fez modificações neste dispositivo que ainda não foram salvas na nuvem. A nuvem do Supabase também contém dados salvos.<br><br>
+          Selecione a ação desejada:
+        </p>
+        <div style="display: flex; flex-direction: column; gap: 12px; margin-bottom: 15px;">
+          <button class="btn-primary" style="text-align: left; padding: 14px; height: auto; display: block; width: 100%; border-radius: 8px; border: none; cursor: pointer;" onclick="closeModal(); window._resolveConflict(true)">
+            <strong style="display:block; font-size: 0.95rem; margin-bottom: 4px;">📤 Manter dados deste dispositivo</strong>
+            <span style="font-size: 0.8rem; font-weight: normal; opacity: 0.85; display:block; line-height: 1.3;">Salva seus dados locais no Supabase, sobrescrevendo a nuvem.</span>
+          </button>
+          
+          <button class="btn-secondary" style="text-align: left; padding: 14px; height: auto; display: block; width: 100%; border-radius: 8px; border: 1px solid var(--border-color); cursor: pointer;" onclick="closeModal(); window._resolveConflict(false)">
+            <strong style="display:block; font-size: 0.95rem; margin-bottom: 4px; color: var(--text-primary);">📥 Baixar dados da nuvem</strong>
+            <span style="font-size: 0.8rem; font-weight: normal; color: var(--text-secondary); display:block; line-height: 1.3;">Substitui as alterações locais pela versão mais recente da nuvem.</span>
+          </button>
+        </div>
+      </div>
+    `, false);
+
+    window._resolveConflict = (keepLocal) => {
+      resolve(keepLocal);
+    };
+  });
+}
+
 async function testSupabaseConnection(url, key) {
   if (!url || !key) return { success: false, message: "URL e Key são obrigatórios." };
   try {
@@ -141,9 +191,13 @@ async function syncToSupabase() {
       }
     }
   }
+
+  // Atualiza timestamps de sincronização
+  localStorage.setItem(DB_KEY + '_last_sync', new Date().toISOString());
+  localStorage.setItem(DB_KEY + '_last_local_edit', new Date().toISOString());
 }
 
-async function syncFromSupabase() {
+async function syncFromSupabase(skipConflictCheck = false) {
   if (!supabaseClient) throw new Error("Supabase não está configurado ou inicializado.");
 
   const tables = [
@@ -214,7 +268,35 @@ async function syncFromSupabase() {
     return;
   }
 
+  // Verificação de conflito de dados locais pendentes de envio
+  if (!skipConflictCheck && localHasData && remoteHasData) {
+    const lastLocalEdit = localStorage.getItem(DB_KEY + '_last_local_edit');
+    const lastSync = localStorage.getItem(DB_KEY + '_last_sync');
+    
+    // Se houve alteração local posterior à última sincronização conhecida (com margem de 5s)
+    const hasUnsyncedEdits = lastLocalEdit && (!lastSync || (new Date(lastLocalEdit).getTime() - new Date(lastSync).getTime() > 5000));
+    
+    if (hasUnsyncedEdits) {
+      // Abre o modal de conflito e aguarda a decisão do usuário
+      const keepLocal = await confirmSyncConflict();
+      if (keepLocal) {
+        console.log("Usuário escolheu manter dados locais. Enviando para o Supabase...");
+        await syncToSupabase();
+        return;
+      } else {
+        console.log("Usuário escolheu sobrescrever local com os dados da nuvem.");
+      }
+    }
+  }
+
+  // Faz o backup local preventivo antes de sobrescrever
+  backupLocalDB();
+
   // Sobrescreve banco de dados local
   localStorage.setItem(DB_KEY, JSON.stringify(newDB));
   DB = newDB;
+
+  // Atualiza timestamps de sincronização
+  localStorage.setItem(DB_KEY + '_last_sync', new Date().toISOString());
+  localStorage.setItem(DB_KEY + '_last_local_edit', new Date().toISOString());
 }
