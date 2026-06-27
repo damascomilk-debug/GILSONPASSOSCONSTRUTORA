@@ -174,6 +174,16 @@ CREATE TABLE IF NOT EXISTS "checklistTarefas" (
   "criadoEm" text
 );
 
+-- Agenda Eventos
+CREATE TABLE IF NOT EXISTS "agendaEventos" (
+  "id" bigint PRIMARY KEY,
+  "titulo" text NOT NULL,
+  "descricao" text,
+  "data" text NOT NULL,
+  "status" text DEFAULT 'PENDENTE',
+  "criado" text
+);
+
 -- ============================================================
 -- Políticas de Segurança (Row Level Security - RLS)
 -- Habilita o RLS e define as políticas de acesso autenticado
@@ -238,6 +248,10 @@ CREATE POLICY "Permitir tudo para autenticados" ON "checklistTopicos" FOR ALL TO
 ALTER TABLE "checklistTarefas" ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Permitir tudo para autenticados" ON "checklistTarefas";
 CREATE POLICY "Permitir tudo para autenticados" ON "checklistTarefas" FOR ALL TO authenticated USING (true) WITH CHECK (true);
+
+ALTER TABLE "agendaEventos" ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Permitir tudo para autenticados" ON "agendaEventos";
+CREATE POLICY "Permitir tudo para autenticados" ON "agendaEventos" FOR ALL TO authenticated USING (true) WITH CHECK (true);
 
 -- ============================================================
 -- MIGRACAO: Adiciona despesaId à tabela caixaMovimentos

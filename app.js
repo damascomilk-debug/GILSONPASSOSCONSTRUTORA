@@ -81,8 +81,10 @@ function getDefaultDB() {
     // Módulo Checklist Semanal
     checklistTopicos: [],
     checklistTarefas: [],
+    // Módulo Agenda
+    agendaEventos: [],
     // sequências de ID
-    seq: { bancos: 1, obras: 1, recebimentos: 1, caixaMovimentos: 1, funcionarios: 1, semanaPagamento: 1, registrosPonto: 1, empreitadas: 1, pagamentos: 1, despesas: 1, gastosPessoais: 1, orcamentoMensal: 1, checklistTopicos: 1, checklistTarefas: 1 }
+    seq: { bancos: 1, obras: 1, recebimentos: 1, caixaMovimentos: 1, funcionarios: 1, semanaPagamento: 1, registrosPonto: 1, empreitadas: 1, pagamentos: 1, despesas: 1, gastosPessoais: 1, orcamentoMensal: 1, checklistTopicos: 1, checklistTarefas: 1, agendaEventos: 1 }
   };
 }
 
@@ -551,6 +553,7 @@ function renderPage(page) {
     case 'pagamentos':      el.innerHTML = pagePagamentos(); break;
     case 'despesas':        el.innerHTML = pageDespesas(); break;
     case 'checklist':       el.innerHTML = pageChecklist(); break;
+    case 'agenda':          el.innerHTML = pageAgenda(); break;
     case 'configuracoes':   el.innerHTML = pageConfiguracoes(); break;
     case 'pessoal-dashboard': el.innerHTML = pagePessoalDashboard(); break;
     case 'gastos-fixos':    el.innerHTML = pageGastosFixos(); break;
@@ -3064,6 +3067,284 @@ function importarDados(event) {
     }
   };
   reader.readAsText(file);
+}
+
+// ======================================
+// AGENDA & CALENDÁRIO
+// ======================================
+let currentCalendarMonth = null;
+let currentCalendarYear = null;
+
+function pageAgenda() {
+  const now = new Date();
+  if (currentCalendarMonth === null) currentCalendarMonth = now.getMonth();
+  if (currentCalendarYear === null) currentCalendarYear = now.getFullYear();
+
+  // Nome do mês atual
+  const mesNome = NOME_MESES[currentCalendarMonth];
+
+  // Algoritmo de geração do calendário mensal
+  const primeiroDia = new Date(currentCalendarYear, currentCalendarMonth, 1);
+  const diaSemanaInicial = primeiroDia.getDay(); // 0 = Domingo, 1 = Segunda, etc.
+  const totalDiasMes = new Date(currentCalendarYear, currentCalendarMonth + 1, 0).getDate();
+  const totalDiasMesAnterior = new Date(currentCalendarYear, currentCalendarMonth, 0).getDate();
+
+  let daysHtml = '';
+
+  // 1. Dias do mês anterior (padding/cinzas)
+  for (let i = diaSemanaInicial - 1; i >= 0; i--) {
+    const diaNum = totalDiasMesAnterior - i;
+    const paddingMonth = currentCalendarMonth === 0 ? 11 : currentCalendarMonth - 1;
+    const paddingYear = currentCalendarMonth === 0 ? currentCalendarYear - 1 : currentCalendarYear;
+    const dateStr = `${paddingYear}-${String(paddingMonth + 1).padStart(2, '0')}-${String(diaNum).padStart(2, '0')}`;
+    daysHtml += renderCalendarCell(diaNum, dateStr, true);
+  }
+
+  // 2. Dias do mês atual
+  for (let diaNum = 1; diaNum <= totalDiasMes; diaNum++) {
+    const dateStr = `${currentCalendarYear}-${String(currentCalendarMonth + 1).padStart(2, '0')}-${String(diaNum).padStart(2, '0')}`;
+    const isToday = now.getDate() === diaNum && now.getMonth() === currentCalendarMonth && now.getFullYear() === currentCalendarYear;
+    daysHtml += renderCalendarCell(diaNum, dateStr, false, isToday);
+  }
+
+  // 3. Dias do próximo mês (padding/cinzas até fechar 42 células)
+  const totalCelulas = diaSemanaInicial + totalDiasMes;
+  const celulasRestantes = totalCelulas > 35 ? 42 - totalCelulas : 35 - totalCelulas;
+  for (let diaNum = 1; diaNum <= celulasRestantes; diaNum++) {
+    const paddingMonth = currentCalendarMonth === 11 ? 0 : currentCalendarMonth + 1;
+    const paddingYear = currentCalendarMonth === 11 ? currentCalendarYear + 1 : currentCalendarYear;
+    const dateStr = `${paddingYear}-${String(paddingMonth + 1).padStart(2, '0')}-${String(diaNum).padStart(2, '0')}`;
+    daysHtml += renderCalendarCell(diaNum, dateStr, true);
+  }
+
+  return `
+    <div class="page-header">
+      <div class="page-title">
+        <h2>📅 Agenda de Obrigações</h2>
+        <p>Acompanhe e agende tarefas e compromissos importantes</p>
+      </div>
+    </div>
+    <div class="page-body">
+      <div class="calendar-container">
+        <div class="calendar-header">
+          <div class="calendar-title-nav">
+            <button class="calendar-nav-btn" onclick="navigateCalendar(-1)">◀</button>
+            <span class="calendar-view-title">${mesNome} ${currentCalendarYear}</span>
+            <button class="calendar-nav-btn" onclick="navigateCalendar(1)">▶</button>
+          </div>
+          <button class="btn-primary" onclick="modalNovoEvento('${todayStr()}')">➕ Novo Agendamento</button>
+        </div>
+        
+        <div class="calendar-grid">
+          <div class="calendar-weekdays">
+            <div>Domingo</div>
+            <div>Segunda</div>
+            <div>Terça</div>
+            <div>Quarta</div>
+            <div>Quinta</div>
+            <div>Sexta</div>
+            <div>Sábado</div>
+          </div>
+          <div class="calendar-days">
+            ${daysHtml}
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function renderCalendarCell(dayNum, dateStr, isOtherMonth = false, isToday = false) {
+  // Filtra eventos agendados para este dia
+  const eventos = (DB.agendaEventos || []).filter(e => e.data === dateStr);
+  const eventsHtml = eventos.map(e => `
+    <div class="calendar-event-item ${e.status.toLowerCase()}" title="${e.titulo}">
+      ${e.titulo}
+    </div>
+  `).join('');
+
+  return `
+    <div class="calendar-day-cell ${isOtherMonth ? 'other-month' : ''} ${isToday ? 'today' : ''}" onclick="modalAgendaDia('${dateStr}')">
+      <div class="day-number">${dayNum}</div>
+      <div class="calendar-events-list">
+        ${eventsHtml}
+      </div>
+    </div>
+  `;
+}
+
+function navigateCalendar(dir) {
+  if (currentCalendarMonth === null) {
+    const now = new Date();
+    currentCalendarMonth = now.getMonth();
+    currentCalendarYear = now.getFullYear();
+  }
+
+  currentCalendarMonth += dir;
+  if (currentCalendarMonth < 0) {
+    currentCalendarMonth = 11;
+    currentCalendarYear -= 1;
+  } else if (currentCalendarMonth > 11) {
+    currentCalendarMonth = 0;
+    currentCalendarYear += 1;
+  }
+  renderPage('agenda');
+}
+
+function modalAgendaDia(dateStr) {
+  // Converte data para formato legível DD/MM/AAAA
+  const [y, m, d] = dateStr.split('-');
+  const dateFormatted = `${d}/${m}/${y}`;
+  
+  const eventosDia = (DB.agendaEventos || []).filter(e => e.data === dateStr);
+
+  let listHtml = '';
+  if (eventosDia.length === 0) {
+    listHtml = `<div class="empty-state" style="padding: 20px 0;"><p>Sem compromissos agendados para este dia.</p></div>`;
+  } else {
+    listHtml = eventosDia.map(e => `
+      <div class="cal-dia-modal-item">
+        <div class="cal-dia-modal-item-info">
+          <div class="cal-dia-modal-item-title" style="${e.status === 'CONCLUIDO' ? 'text-decoration: line-through; color: var(--text-muted); font-style: italic;' : ''}">
+            ${e.titulo}
+          </div>
+          ${e.descricao ? `<div class="cal-dia-modal-item-desc">${e.descricao}</div>` : ''}
+          <div style="margin-top:4px">
+            <span class="badge ${e.status === 'CONCLUIDO' ? 'badge-green' : 'badge-orange'}">${e.status}</span>
+          </div>
+        </div>
+        <div class="cal-dia-modal-item-actions">
+          <button class="btn-icon" onclick="toggleEventoStatus(${e.id}, '${dateStr}')" title="${e.status === 'CONCLUIDO' ? 'Marcar como Pendente' : 'Marcar como Concluído'}">
+            ${e.status === 'CONCLUIDO' ? '🔄' : '✅'}
+          </button>
+          <button class="btn-icon" onclick="modalNovoEvento('${dateStr}', ${e.id})" title="Editar">✏️</button>
+          <button class="btn-icon" onclick="deleteEvento(${e.id}, '${dateStr}')" title="Excluir">🗑️</button>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  openModal(`Compromissos — ${dateFormatted}`, `
+    <div class="cal-dia-modal-list">
+      ${listHtml}
+    </div>
+    <div class="modal-footer" style="padding-top:12px; border-top: 1px solid var(--border)">
+      <button class="btn-secondary" onclick="closeModal()">Fechar</button>
+      <button class="btn-primary" onclick="modalNovoEvento('${dateStr}')">➕ Novo Compromisso</button>
+    </div>
+  `);
+}
+
+function modalNovoEvento(dateStr, eventId = null) {
+  const ev = eventId ? DB.agendaEventos.find(e => e.id === eventId) : null;
+  const titulo = ev ? ev.titulo : '';
+  const desc = ev ? ev.descricao || '' : '';
+  const status = ev ? ev.status : 'PENDENTE';
+  const data = ev ? ev.data : dateStr;
+
+  // Renderiza sub-modal ou modal
+  openModal(ev ? 'Editar Compromisso' : 'Novo Compromisso', `
+    <div class="form-group">
+      <label>Título *</label>
+      <input id="evTitulo" value="${titulo}" placeholder="Ex: Pagar guia do Simples..." />
+    </div>
+    <div class="form-group">
+      <label>Descrição</label>
+      <textarea id="evDesc" rows="3" placeholder="Detalhes opcionais...">${desc}</textarea>
+    </div>
+    <div class="form-group">
+      <label>Data</label>
+      <input type="date" id="evData" value="${data}" />
+    </div>
+    <div class="form-group">
+      <label>Status</label>
+      <select id="evStatus">
+        <option value="PENDENTE" ${status === 'PENDENTE' ? 'selected' : ''}>PENDENTE</option>
+        <option value="CONCLUIDO" ${status === 'CONCLUIDO' ? 'selected' : ''}>CONCLUÍDO</option>
+      </select>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="modalAgendaDia('${dateStr}')">Voltar</button>
+      <button class="btn-primary" onclick="salvarEvento('${dateStr}', ${eventId})">💾 Salvar</button>
+    </div>
+  `);
+}
+
+function salvarEvento(originalDateStr, eventId) {
+  const titulo = document.getElementById('evTitulo').value.trim();
+  const desc = document.getElementById('evDesc').value.trim();
+  const data = document.getElementById('evData').value;
+  const status = document.getElementById('evStatus').value;
+
+  if (!titulo) {
+    showToast('Título é obrigatório', 'error');
+    return;
+  }
+  if (!data) {
+    showToast('Data é obrigatória', 'error');
+    return;
+  }
+
+  if (!DB.agendaEventos) DB.agendaEventos = [];
+
+  if (eventId) {
+    // Editar
+    const ev = DB.agendaEventos.find(e => e.id === eventId);
+    if (ev) {
+      ev.titulo = titulo;
+      ev.descricao = desc;
+      ev.data = data;
+      ev.status = status;
+    }
+  } else {
+    // Novo
+    DB.agendaEventos.push({
+      id: nextId('agendaEventos'),
+      titulo,
+      descricao: desc,
+      data,
+      status,
+      criado: new Date().toISOString()
+    });
+  }
+
+  saveDB(DB);
+  showToast('Compromisso salvo com sucesso!');
+  
+  // Reabre o modal do dia para mostrar as alterações
+  modalAgendaDia(originalDateStr === data ? originalDateStr : data);
+  
+  // Se estiver visualizando a agenda, renderiza a página de fundo
+  if (typeof currentPage !== 'undefined' && currentPage === 'agenda') {
+    renderPage('agenda');
+  }
+}
+
+function deleteEvento(id, dateStr) {
+  confirm_action('Excluir este compromisso?', () => {
+    DB.agendaEventos = DB.agendaEventos.filter(e => e.id !== id);
+    saveDB(DB);
+    showToast('Compromisso excluído.', 'warning');
+    modalAgendaDia(dateStr);
+    
+    if (typeof currentPage !== 'undefined' && currentPage === 'agenda') {
+      renderPage('agenda');
+    }
+  });
+}
+
+function toggleEventoStatus(id, dateStr) {
+  const ev = DB.agendaEventos.find(e => e.id === id);
+  if (ev) {
+    ev.status = ev.status === 'CONCLUIDO' ? 'PENDENTE' : 'CONCLUIDO';
+    saveDB(DB);
+    showToast(ev.status === 'CONCLUIDO' ? 'Compromisso concluído!' : 'Compromisso reaberto.');
+    modalAgendaDia(dateStr);
+    
+    if (typeof currentPage !== 'undefined' && currentPage === 'agenda') {
+      renderPage('agenda');
+    }
+  }
 }
 
 

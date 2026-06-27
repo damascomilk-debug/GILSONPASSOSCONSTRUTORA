@@ -187,6 +187,7 @@ async function syncToSupabase() {
 
   // Ordem reversa para deleção devido a chaves estrangeiras
   const tablesDeleteOrder = [
+    'agendaEventos',
     'checklistTarefas',
     'checklistTopicos',
     'registrosPonto',
@@ -220,7 +221,8 @@ async function syncToSupabase() {
     { name: 'gastosPessoais', data: DB.gastosPessoais },
     { name: 'orcamentoMensal', data: DB.orcamentoMensal },
     { name: 'checklistTopicos', data: DB.checklistTopicos },
-    { name: 'checklistTarefas', data: DB.checklistTarefas }
+    { name: 'checklistTarefas', data: DB.checklistTarefas },
+    { name: 'agendaEventos', data: DB.agendaEventos }
   ];
 
   // Limpa as tabelas no Supabase para garantir cópia fiel (deleta dados órfãos)
@@ -270,7 +272,8 @@ async function syncFromSupabase(skipConflictCheck = false) {
     { name: 'gastosPessoais', prop: 'gastosPessoais' },
     { name: 'orcamentoMensal', prop: 'orcamentoMensal' },
     { name: 'checklistTopicos', prop: 'checklistTopicos' },
-    { name: 'checklistTarefas', prop: 'checklistTarefas' }
+    { name: 'checklistTarefas', prop: 'checklistTarefas' },
+    { name: 'agendaEventos', prop: 'agendaEventos' }
   ];
 
   const newDB = {
@@ -289,10 +292,11 @@ async function syncFromSupabase(skipConflictCheck = false) {
     orcamentoMensal: [],
     checklistTopicos: [],
     checklistTarefas: [],
+    agendaEventos: [],
     seq: {
       bancos: 1, obras: 1, recebimentos: 1, caixaMovimentos: 1, funcionarios: 1,
       semanaPagamento: 1, registrosPonto: 1, empreitadas: 1, pagamentos: 1,
-      despesas: 1, gastosPessoais: 1, orcamentoMensal: 1, checklistTopicos: 1, checklistTarefas: 1
+      despesas: 1, gastosPessoais: 1, orcamentoMensal: 1, checklistTopicos: 1, checklistTarefas: 1, agendaEventos: 1
     }
   };
 
