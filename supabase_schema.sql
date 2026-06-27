@@ -59,6 +59,7 @@ CREATE TABLE IF NOT EXISTS "caixaMovimentos" (
   "data" text,
   "entidadeDestino" bigint,
   "bancoDestino" bigint REFERENCES "bancos"("id") ON DELETE SET NULL,
+  "despesaId" bigint REFERENCES "despesas"("id") ON DELETE CASCADE,
   "criado" text
 );
 
@@ -237,3 +238,8 @@ CREATE POLICY "Permitir tudo para autenticados" ON "checklistTopicos" FOR ALL TO
 ALTER TABLE "checklistTarefas" ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Permitir tudo para autenticados" ON "checklistTarefas";
 CREATE POLICY "Permitir tudo para autenticados" ON "checklistTarefas" FOR ALL TO authenticated USING (true) WITH CHECK (true);
+
+-- ============================================================
+-- MIGRACAO: Adiciona despesaId à tabela caixaMovimentos
+-- ============================================================
+ALTER TABLE "caixaMovimentos" ADD COLUMN IF NOT EXISTS "despesaId" bigint REFERENCES "despesas"("id") ON DELETE CASCADE;

@@ -1890,11 +1890,11 @@ function pageDespesas() {
   });
 
   const rows = [...filtered].sort((a,b)=>b.id-a.id).map(d => {
-    const banco = DB.bancos.find(b => b.id === d.bancoId);
+    const banco = d.bancoId ? DB.bancos.find(b => b.id === d.bancoId) : null;
     const ent   = banco ? DB.entidades.find(e => e.id === banco.entidadeId) : null;
     return `<tr>
       <td>${fmtDate(d.data)}</td>
-      <td>${banco ? banco.nomeBanco : '—'}</td>
+      <td>${banco ? banco.nomeBanco : '💵 Caixa em Espécie'}</td>
       <td>${ent ? `<span class="badge ${ent.tipo==='MEI'?'badge-orange':'badge-blue'}">${ent.tipo} ${ent.nome}</span>` : '—'}</td>
       <td><span class="badge badge-gray">${d.categoria}</span></td>
       <td>${d.descricao}</td>
@@ -1956,10 +1956,14 @@ function modalNovaDespesa() {
     const ent = DB.entidades.find(e => e.id === b.entidadeId);
     return `<option value="${b.id}">${b.nomeBanco} (${ent?.tipo} ${ent?.nome})</option>`;
   }).join('');
-  if (!bancosOpts) { showToast('Cadastre um banco primeiro', 'warning'); return; }
+
+  const fontOpts = `
+    <option value="caixa">💵 Caixa em Espécie (Saldo: ${fmt(getSaldoCaixa())})</option>
+    ${bancosOpts}
+  `;
 
   openModal('Nova Despesa', `
-    <div class="form-group"><label>Banco Debitado *</label><select id="dBanco">${bancosOpts}</select></div>
+    <div class="form-group"><label>Fonte de Pagamento *</label><select id="dBanco">${fontOpts}</select></div>
     <div class="form-group"><label>Categoria</label>
       <select id="dCat">
         <option>MATERIAL</option><option>FERRAMENTA</option><option>SERVIÇO</option><option>ADMINISTRATIVO</option><option>PESSOAL</option><option>OUTRO</option>
@@ -1986,13 +1990,43 @@ function salvarDespesa() {
   const data  = document.getElementById('dData').value;
   if (!desc)  { showToast('Descrição é obrigatória', 'error'); return; }
   if (!valor) { showToast('Informe o valor', 'error'); return; }
+
+  const fonteVal = document.getElementById('dBanco').value;
+  const isCaixa = (fonteVal === 'caixa');
+  const bancoId = isCaixa ? null : parseInt(fonteVal);
+  const despesaId = nextId('despesas');
+
+  if (isCaixa) {
+    const saldoCaixa = getSaldoCaixa();
+    if (saldoCaixa < valor) {
+      showToast(`Saldo insuficiente no caixa. Saldo atual: ${fmt(saldoCaixa)}`, 'error');
+      return;
+    }
+  }
+
   DB.despesas.push({
-    id: nextId('despesas'),
-    bancoId: parseInt(document.getElementById('dBanco').value),
+    id: despesaId,
+    bancoId: bancoId,
     obraId:  parseInt(document.getElementById('dObra').value) || null,
     categoria: document.getElementById('dCat').value,
     descricao: desc, valor, data, criado: new Date().toISOString()
   });
+
+  if (isCaixa) {
+    DB.caixaMovimentos.push({
+      id: nextId('caixaMovimentos'),
+      tipo: 'SAIDA',
+      valor: valor,
+      obraId: parseInt(document.getElementById('dObra').value) || null,
+      descricao: `Despesa: ${desc}`,
+      data: data,
+      entidadeDestino: null,
+      bancoDestino: null,
+      despesaId: despesaId,
+      criado: new Date().toISOString()
+    });
+  }
+
   saveDB(DB);
   closeModal();
   showToast('Despesa registrada!');
@@ -2002,6 +2036,7 @@ function salvarDespesa() {
 function deleteDespesa(id) {
   confirm_action('Excluir esta despesa?', () => {
     DB.despesas = DB.despesas.filter(d => d.id !== id);
+    DB.caixaMovimentos = DB.caixaMovimentos.filter(m => m.despesaId !== id);
     saveDB(DB);
     showToast('Despesa excluída.', 'warning');
     navigate('despesas');
