@@ -19,20 +19,37 @@ function loadDB() {
   } catch { return getDefaultDB(); }
 }
 
-let _syncTimeout = null;
-function saveDB(db) {
+let _isSyncing = false;
+let _pendingSync = false;
+
+async function saveDB(db) {
   localStorage.setItem(DB_KEY, JSON.stringify(db));
   localStorage.setItem(DB_KEY + '_last_local_edit', new Date().toISOString());
+  
   if (typeof supabaseClient !== 'undefined' && supabaseClient) {
-    if (_syncTimeout) clearTimeout(_syncTimeout);
-    _syncTimeout = setTimeout(async () => {
-      try {
-        await syncToSupabase();
-        showToast("Nuvem atualizada.");
-      } catch (err) {
-        console.error("Erro na sincronização automática para o Supabase:", err);
+    updateAppSyncStatus(false, 'Sincronizando...');
+    
+    if (_isSyncing) {
+      _pendingSync = true;
+      return;
+    }
+    
+    _isSyncing = true;
+    try {
+      await syncToSupabase();
+      updateAppSyncStatus(true, 'Sincronizado');
+      showToast("Nuvem atualizada.");
+    } catch (err) {
+      updateAppSyncStatus(false, 'Erro ao sincronizar');
+      console.error("Erro na sincronização automática para o Supabase:", err);
+      showToast("Falha ao salvar na nuvem: " + err.message, "error");
+    } finally {
+      _isSyncing = false;
+      if (_pendingSync) {
+        _pendingSync = false;
+        saveDB(DB);
       }
-    }, 2000);
+    }
   }
 }
 
@@ -297,11 +314,13 @@ async function initializeApp() {
   
   if (!supabaseClient) {
     updateSupaStatusIndicator(false);
+    updateAppSyncStatus(false, 'Sem Conexão');
     showLogin();
     return;
   }
   
   updateSupaStatusIndicator(true);
+  updateAppSyncStatus(true, 'Sincronizado');
   
   try {
     const { data, error } = await supabaseClient.auth.getSession();
@@ -309,9 +328,12 @@ async function initializeApp() {
       setSession(data.session.user.email);
       // Sincroniza os dados da nuvem na inicialização
       try {
+        updateAppSyncStatus(false, 'Sincronizando...');
         await syncFromSupabase();
+        updateAppSyncStatus(true, 'Sincronizado');
       } catch (syncErr) {
         console.error("Erro ao sincronizar dados da nuvem na inicialização:", syncErr);
+        updateAppSyncStatus(false, 'Erro ao sincronizar');
       }
       showApp(data.session.user.email);
     } else {

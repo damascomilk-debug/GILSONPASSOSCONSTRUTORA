@@ -100,6 +100,61 @@ function confirmSyncConflict() {
   });
 }
 
+function updateAppSyncStatus(connected, statusText) {
+  const indicator = document.getElementById('appSupaStatusIndicator');
+  const label = document.getElementById('appSupaStatusText');
+  const syncBtn = document.querySelector('.btn-sync');
+  
+  if (indicator && label) {
+    if (connected) {
+      indicator.className = 'status-indicator connected';
+      label.textContent = statusText || 'Sincronizado';
+      if (syncBtn) syncBtn.classList.remove('spinning');
+    } else {
+      if (statusText === 'Sincronizando...') {
+        indicator.className = 'status-indicator loading';
+        label.textContent = statusText;
+        if (syncBtn) syncBtn.classList.add('spinning');
+      } else {
+        indicator.className = 'status-indicator disconnected';
+        label.textContent = statusText || 'Desconectado';
+        if (syncBtn) syncBtn.classList.remove('spinning');
+      }
+    }
+  }
+}
+
+async function forcarSincronizacao() {
+  if (!supabaseClient) {
+    initSupabase();
+  }
+  
+  if (!supabaseClient) {
+    showToast("Supabase não configurado ou offline.", "error");
+    updateAppSyncStatus(false, 'Sem Conexão');
+    return;
+  }
+
+  updateAppSyncStatus(false, 'Sincronizando...');
+  showToast("Sincronizando com a nuvem...");
+
+  try {
+    // Sincroniza do Supabase (que rodará o algoritmo de verificação de conflitos se houver)
+    await syncFromSupabase();
+    updateAppSyncStatus(true, 'Sincronizado');
+    showToast("Sincronização concluída com sucesso!");
+    
+    // Força recarga/atualização da página atual para refletir possíveis novos dados
+    if (typeof currentPage !== 'undefined' && typeof renderPage === 'function') {
+      renderPage(currentPage);
+    }
+  } catch (err) {
+    updateAppSyncStatus(false, 'Erro ao sincronizar');
+    console.error("Erro na sincronização manual:", err);
+    showToast("Falha na sincronização: " + err.message, "error");
+  }
+}
+
 async function testSupabaseConnection(url, key) {
   if (!url || !key) return { success: false, message: "URL e Key são obrigatórios." };
   try {
