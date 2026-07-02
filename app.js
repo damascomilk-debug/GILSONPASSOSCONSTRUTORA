@@ -91,8 +91,50 @@ function getDefaultDB() {
 let DB = loadDB();
 
 // Filtros de Período de Referência Global
-let globalFiltroMes = null;
-let globalFiltroAno = null;
+let globalFiltroTipo = 'MENSAL'; // 'MENSAL', 'INTERVALO'
+let globalFiltroMes = new Date().getMonth() + 1;
+let globalFiltroAno = new Date().getFullYear();
+let globalFiltroMesFim = new Date().getMonth() + 1;
+let globalFiltroAnoFim = new Date().getFullYear();
+
+function isPeriodoValido(mes, ano) {
+  if (globalFiltroTipo === 'MENSAL') {
+    const matchMes = (globalFiltroMes === 'all' || mes == globalFiltroMes);
+    const matchAno = (globalFiltroAno === 'all' || ano == globalFiltroAno);
+    return matchMes && matchAno;
+  }
+  if (globalFiltroTipo === 'INTERVALO') {
+    const startMes = globalFiltroMes === 'all' ? 1 : parseInt(globalFiltroMes);
+    const startAno = globalFiltroAno === 'all' ? new Date().getFullYear() : parseInt(globalFiltroAno);
+    const endMes = globalFiltroMesFim === 'all' ? 12 : parseInt(globalFiltroMesFim);
+    const endAno = globalFiltroAnoFim === 'all' ? new Date().getFullYear() : parseInt(globalFiltroAnoFim);
+
+    const valItem = parseInt(ano) * 12 + parseInt(mes);
+    const valStart = startAno * 12 + startMes;
+    const valEnd = endAno * 12 + endMes;
+    return valItem >= valStart && valItem <= valEnd;
+  }
+  return true;
+}
+
+function isDataValida(dateStr) {
+  if (!dateStr) return false;
+  const [y, m] = dateStr.split('-').map(Number);
+  return isPeriodoValido(m, y);
+}
+
+function getPeriodoFormatado() {
+  if (globalFiltroTipo === 'MENSAL') {
+    if (globalFiltroMes === 'all' && globalFiltroAno === 'all') return 'Todos os Períodos';
+    if (globalFiltroMes === 'all') return `Todos os meses de ${globalFiltroAno}`;
+    if (globalFiltroAno === 'all') return `${monthName(globalFiltroMes)} (Todos os anos)`;
+    return `${monthName(globalFiltroMes)}/${globalFiltroAno}`;
+  }
+  if (globalFiltroTipo === 'INTERVALO') {
+    return `De ${monthName(globalFiltroMes)}/${globalFiltroAno} a ${monthName(globalFiltroMesFim)}/${globalFiltroAnoFim}`;
+  }
+  return 'Todos os Períodos';
+}
 
 const NOME_MESES = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
 
@@ -120,40 +162,112 @@ function renderYearSelectOptions(selectedYear, includeAll = false) {
 }
 
 function renderPeriodFilterCard(label = 'Período de Referência') {
-  const now = new Date();
-  if (!globalFiltroMes) globalFiltroMes = now.getMonth() + 1;
-  if (!globalFiltroAno) globalFiltroAno = now.getFullYear();
+  if (!globalFiltroTipo) globalFiltroTipo = 'MENSAL';
+  if (!globalFiltroMes) globalFiltroMes = new Date().getMonth() + 1;
+  if (!globalFiltroAno) globalFiltroAno = new Date().getFullYear();
+  if (!globalFiltroMesFim) globalFiltroMesFim = new Date().getMonth() + 1;
+  if (!globalFiltroAnoFim) globalFiltroAnoFim = new Date().getFullYear();
+
+  const isMensal = (globalFiltroTipo === 'MENSAL');
+  const isIntervalo = (globalFiltroTipo === 'INTERVALO');
 
   return `
   <!-- Filtro de Período Global -->
   <div class="card" style="margin-bottom: 20px; padding: 16px;">
-    <div class="grid-2" style="gap: 14px;">
-      <div class="form-group" style="margin-bottom: 0;">
-        <label style="margin-bottom: 4px;">${label} (Mês)</label>
-        <select id="globalFiltroMes" onchange="onGlobalPeriodChange()">
-          ${renderMonthSelectOptions(globalFiltroMes)}
-        </select>
-      </div>
-      <div class="form-group" style="margin-bottom: 0;">
-        <label style="margin-bottom: 4px;">${label} (Ano)</label>
-        <select id="globalFiltroAno" onchange="onGlobalPeriodChange()">
-          ${renderYearSelectOptions(globalFiltroAno)}
-        </select>
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; flex-wrap:wrap; gap:8px;">
+      <span style="font-size:14px; font-weight:700; color:var(--text-primary);">${label}</span>
+      <div style="display:flex; gap:8px;">
+        <button class="btn-secondary" style="padding:4px 10px; font-size:12px; background:${isMensal ? 'var(--primary)' : ''}; color:${isMensal ? 'white' : ''}; border-color:${isMensal ? 'var(--primary)' : ''}" onclick="setGlobalPeriodTipo('MENSAL')">📅 Mês Único</button>
+        <button class="btn-secondary" style="padding:4px 10px; font-size:12px; background:${isIntervalo ? 'var(--primary)' : ''}; color:${isIntervalo ? 'white' : ''}; border-color:${isIntervalo ? 'var(--primary)' : ''}" onclick="setGlobalPeriodTipo('INTERVALO')">🗓️ Intervalo de Meses</button>
       </div>
     </div>
+    
+    <div class="grid-2" style="gap: 14px; align-items: flex-end;">
+      ${isMensal ? `
+        <div class="form-group" style="margin-bottom: 0;">
+          <label style="margin-bottom: 4px;">Mês</label>
+          <select id="globalFiltroMes" onchange="onGlobalPeriodChange()">
+            ${renderMonthSelectOptions(globalFiltroMes, true)}
+          </select>
+        </div>
+        <div class="form-group" style="margin-bottom: 0;">
+          <label style="margin-bottom: 4px;">Ano</label>
+          <select id="globalFiltroAno" onchange="onGlobalPeriodChange()">
+            ${renderYearSelectOptions(globalFiltroAno, true)}
+          </select>
+        </div>
+      ` : `
+        <div class="form-group" style="margin-bottom: 0;">
+          <label style="margin-bottom: 4px;">De (Mês/Ano)</label>
+          <div style="display:flex; gap:6px;">
+            <select id="globalFiltroMes" onchange="onGlobalPeriodChange()" style="flex:1;">
+              ${renderMonthSelectOptions(globalFiltroMes, false)}
+            </select>
+            <select id="globalFiltroAno" onchange="onGlobalPeriodChange()" style="flex:1;">
+              ${renderYearSelectOptions(globalFiltroAno, false)}
+            </select>
+          </div>
+        </div>
+        <div class="form-group" style="margin-bottom: 0;">
+          <label style="margin-bottom: 4px;">Até (Mês/Ano)</label>
+          <div style="display:flex; gap:6px;">
+            <select id="globalFiltroMesFim" onchange="onGlobalPeriodChange()" style="flex:1;">
+              ${renderMonthSelectOptions(globalFiltroMesFim, false)}
+            </select>
+            <select id="globalFiltroAnoFim" onchange="onGlobalPeriodChange()" style="flex:1;">
+              ${renderYearSelectOptions(globalFiltroAnoFim, false)}
+            </select>
+          </div>
+        </div>
+      `}
+    </div>
   </div>`;
+}
+
+function setGlobalPeriodTipo(tipo) {
+  globalFiltroTipo = tipo;
+  if (tipo === 'INTERVALO') {
+    if (globalFiltroMes === 'all') globalFiltroMes = 1;
+    if (globalFiltroAno === 'all') globalFiltroAno = new Date().getFullYear();
+    globalFiltroMesFim = globalFiltroMes;
+    globalFiltroAnoFim = globalFiltroAno;
+  }
+  renderPage(currentPage);
 }
 
 function onGlobalPeriodChange() {
   const mesSelect = document.getElementById('globalFiltroMes');
   const anoSelect = document.getElementById('globalFiltroAno');
-  if (mesSelect && anoSelect) {
+  const mesFimSelect = document.getElementById('globalFiltroMesFim');
+  const anoFimSelect = document.getElementById('globalFiltroAnoFim');
+
+  if (mesSelect) {
     const valMes = mesSelect.value;
-    const valAno = anoSelect.value;
     globalFiltroMes = valMes === 'all' ? 'all' : parseInt(valMes);
-    globalFiltroAno = valAno === 'all' ? 'all' : parseInt(valAno);
-    renderPage(currentPage);
   }
+  if (anoSelect) {
+    const valAno = anoSelect.value;
+    globalFiltroAno = valAno === 'all' ? 'all' : parseInt(valAno);
+  }
+  if (mesFimSelect) {
+    globalFiltroMesFim = parseInt(mesFimSelect.value);
+  }
+  if (anoFimSelect) {
+    globalFiltroAnoFim = parseInt(anoFimSelect.value);
+  }
+
+  // Validação cronológica para o modo intervalo
+  if (globalFiltroTipo === 'INTERVALO' && globalFiltroAno && globalFiltroMes && globalFiltroAnoFim && globalFiltroMesFim) {
+    const startVal = parseInt(globalFiltroAno) * 12 + parseInt(globalFiltroMes);
+    const endVal = parseInt(globalFiltroAnoFim) * 12 + parseInt(globalFiltroMesFim);
+    if (startVal > endVal) {
+      showToast("A data de término não pode ser anterior à data de início.", "warning");
+      globalFiltroMesFim = globalFiltroMes;
+      globalFiltroAnoFim = globalFiltroAno;
+    }
+  }
+
+  renderPage(currentPage);
 }
 
 
@@ -475,6 +589,11 @@ function getMoneyValue(id) {
 // LIMITES FISCAIS (core logic)
 // ======================================
 function calcConsumoEntidade(entidadeId, mes, ano) {
+  if (mes === globalFiltroMes && ano === globalFiltroAno) {
+    return DB.recebimentos
+      .filter(r => r.entidadeId === entidadeId && isPeriodoValido(r.mesRef, r.anoRef))
+      .reduce((s, r) => s + r.valor, 0);
+  }
   return DB.recebimentos
     .filter(r => r.entidadeId === entidadeId && r.mesRef === mes && r.anoRef === ano)
     .reduce((s, r) => s + r.valor, 0);
@@ -577,14 +696,10 @@ function renderPage(page) {
 // DASHBOARD EMPRESARIAL
 // ======================================
 function pageDashboard() {
-  const now = new Date();
-  if (!globalFiltroMes) globalFiltroMes = now.getMonth() + 1;
-  if (!globalFiltroAno) globalFiltroAno = now.getFullYear();
-
   const mes = globalFiltroMes;
   const ano = globalFiltroAno;
 
-  const totalRecMes  = DB.recebimentos.filter(r => r.mesRef === mes && r.anoRef === ano).reduce((s,r) => s+r.valor, 0);
+  const totalRecMes  = DB.recebimentos.filter(r => isPeriodoValido(r.mesRef, r.anoRef)).reduce((s,r) => s+r.valor, 0);
   const saldoCaixa   = getSaldoCaixa();
   const obrasAtivas  = DB.obras.filter(o => o.status === 'ATIVA').length;
   const funcAtivos   = DB.funcionarios.filter(f => f.ativo).length;
@@ -625,7 +740,7 @@ function pageDashboard() {
   // Faturamento por obra (top 5)
   const obrasFat = DB.obras.map(o => ({
     nome: o.nome,
-    fat: DB.recebimentos.filter(r => r.obraId === o.id && r.anoRef === ano).reduce((s,r) => s+r.valor, 0)
+    fat: DB.recebimentos.filter(r => r.obraId === o.id && isPeriodoValido(r.mesRef, r.anoRef)).reduce((s,r) => s+r.valor, 0)
   })).sort((a,b) => b.fat - a.fat).slice(0,5);
 
   // Últimos recebimentos
@@ -635,7 +750,7 @@ function pageDashboard() {
   <div class="page-header">
     <div class="page-title">
       <h2>📊 Dashboard Empresarial</h2>
-      <p>${monthName(mes)}/${ano} — Visão Geral Financeira</p>
+      <p>${getPeriodoFormatado()} — Visão Geral Financeira</p>
     </div>
   </div>
   <div class="page-body">
@@ -646,9 +761,9 @@ function pageDashboard() {
       <div class="stat-card">
         <div class="stat-icon orange">💰</div>
         <div class="stat-info">
-          <div class="stat-label">Faturamento Mês</div>
+          <div class="stat-label">Faturamento do Período</div>
           <div class="stat-value">${fmt(totalRecMes)}</div>
-          <div class="stat-change">${monthName(mes)}/${ano}</div>
+          <div class="stat-change">${getPeriodoFormatado()}</div>
         </div>
       </div>
       <div class="stat-card">
@@ -681,7 +796,7 @@ function pageDashboard() {
     <div class="grid-2" style="margin-bottom:24px">
       <!-- Limites Fiscais -->
       <div class="card">
-        <div class="card-title">📈 Limites Fiscais — ${monthName(mes)}/${ano}</div>
+        <div class="card-title">📈 Limites Fiscais — ${getPeriodoFormatado()}</div>
         ${limitesHTML || '<div class="empty-state"><div class="empty-icon">📊</div><p class="empty-title">Sem movimentações</p></div>'}
       </div>
       <!-- Faturamento por obra -->
@@ -838,19 +953,8 @@ function deleteObra(id) {
 }
 
 // ======================================
-let recebFiltroMes = null;
-let recebFiltroAno = null;
-
 function pageRecebimentos() {
-  const now = new Date();
-  if (recebFiltroMes === null) recebFiltroMes = globalFiltroMes || (now.getMonth() + 1);
-  if (recebFiltroAno === null) recebFiltroAno = globalFiltroAno || now.getFullYear();
-
-  const filtered = DB.recebimentos.filter(r => {
-    const matchMes = (recebFiltroMes === 'all' || r.mesRef == recebFiltroMes);
-    const matchAno = (recebFiltroAno === 'all' || r.anoRef == recebFiltroAno);
-    return matchMes && matchAno;
-  });
+  const filtered = DB.recebimentos.filter(r => isPeriodoValido(r.mesRef, r.anoRef));
 
   const rows = [...filtered].sort((a,b) => b.id - a.id).map(r => {
     const obra = DB.obras.find(o => o.id === r.obraId);
@@ -876,23 +980,7 @@ function pageRecebimentos() {
     </div>
   </div>
   <div class="page-body">
-    <!-- Filtros de Pesquisa -->
-    <div class="card" style="margin-bottom: 20px; padding: 16px;">
-      <div class="grid-2" style="gap: 14px;">
-        <div class="form-group" style="margin-bottom: 0;">
-          <label style="margin-bottom: 4px;">Filtrar por Mês</label>
-          <select id="recebFiltroMes" onchange="onRecebPeriodChange()">
-            ${renderMonthSelectOptions(recebFiltroMes, true)}
-          </select>
-        </div>
-        <div class="form-group" style="margin-bottom: 0;">
-          <label style="margin-bottom: 4px;">Filtrar por Ano</label>
-          <select id="recebFiltroAno" onchange="onRecebPeriodChange()">
-            ${renderYearSelectOptions(recebFiltroAno, true)}
-          </select>
-        </div>
-      </div>
-    </div>
+    ${renderPeriodFilterCard('Visualizar Período')}
 
     ${filtered.length === 0
       ? `<div class="empty-state"><div class="empty-icon">💰</div><p class="empty-title">Nenhum recebimento registrado para este período</p></div>`
@@ -902,18 +990,6 @@ function pageRecebimentos() {
         </table></div>`
     }
   </div>`;
-}
-
-function onRecebPeriodChange() {
-  const mesSelect = document.getElementById('recebFiltroMes');
-  const anoSelect = document.getElementById('recebFiltroAno');
-  if (mesSelect && anoSelect) {
-    const valMes = mesSelect.value;
-    const valAno = anoSelect.value;
-    recebFiltroMes = valMes === 'all' ? 'all' : parseInt(valMes);
-    recebFiltroAno = valAno === 'all' ? 'all' : parseInt(valAno);
-    renderPage('recebimentos');
-  }
 }
 
 function modalNovoRecebimento() {
@@ -1138,21 +1214,8 @@ function pageLimites() {
 // ======================================
 // CAIXA EM ESPÉCIE
 // ======================================
-let caixaFiltroMes = null;
-let caixaFiltroAno = null;
-
 function pageCaixa() {
-  const now = new Date();
-  if (caixaFiltroMes === null) caixaFiltroMes = globalFiltroMes || (now.getMonth() + 1);
-  if (caixaFiltroAno === null) caixaFiltroAno = globalFiltroAno || now.getFullYear();
-
-  const filtered = DB.caixaMovimentos.filter(m => {
-    if (!m.data) return false;
-    const [y, monthVal] = m.data.split('-').map(Number);
-    const matchMes = (caixaFiltroMes === 'all' || monthVal == caixaFiltroMes);
-    const matchAno = (caixaFiltroAno === 'all' || y == caixaFiltroAno);
-    return matchMes && matchAno;
-  });
+  const filtered = DB.caixaMovimentos.filter(m => isDataValida(m.data));
 
   const saldo = getSaldoCaixa();
   const movs  = [...filtered].sort((a,b) => b.id - a.id);
@@ -1189,23 +1252,7 @@ function pageCaixa() {
     </div>
     <div class="alert alert-info">ℹ️ O caixa em espécie NÃO afeta os limites fiscais enquanto estiver aqui. Use "Depositar em Banco" para transferir para uma conta e abater o limite da entidade escolhida.</div>
     
-    <!-- Filtros de Pesquisa -->
-    <div class="card" style="margin-bottom: 20px; padding: 16px;">
-      <div class="grid-2" style="gap: 14px;">
-        <div class="form-group" style="margin-bottom: 0;">
-          <label style="margin-bottom: 4px;">Filtrar por Mês</label>
-          <select id="caixaFiltroMes" onchange="onCaixaPeriodChange()">
-            ${renderMonthSelectOptions(caixaFiltroMes, true)}
-          </select>
-        </div>
-        <div class="form-group" style="margin-bottom: 0;">
-          <label style="margin-bottom: 4px;">Filtrar por Ano</label>
-          <select id="caixaFiltroAno" onchange="onCaixaPeriodChange()">
-            ${renderYearSelectOptions(caixaFiltroAno, true)}
-          </select>
-        </div>
-      </div>
-    </div>
+    ${renderPeriodFilterCard('Visualizar Período')}
 
     <div class="card">
       <div class="card-title">📋 Histórico de Movimentações</div>
@@ -1218,18 +1265,6 @@ function pageCaixa() {
       }
     </div>
   </div>`;
-}
-
-function onCaixaPeriodChange() {
-  const mesSelect = document.getElementById('caixaFiltroMes');
-  const anoSelect = document.getElementById('caixaFiltroAno');
-  if (mesSelect && anoSelect) {
-    const valMes = mesSelect.value;
-    const valAno = anoSelect.value;
-    caixaFiltroMes = valMes === 'all' ? 'all' : parseInt(valMes);
-    caixaFiltroAno = valAno === 'all' ? 'all' : parseInt(valAno);
-    renderPage('caixa');
-  }
 }
 
 function modalDepositoEspecie() {
@@ -1540,11 +1575,17 @@ let pontoFuncId   = null;
 function pagePonto() {
   const diaristas = DB.funcionarios.filter(f => f.tipo === 'DIARISTA' && f.ativo);
   
-  const now = new Date();
-  if (!globalFiltroMes) globalFiltroMes = now.getMonth() + 1;
-  if (!globalFiltroAno) globalFiltroAno = now.getFullYear();
-  
-  const semanas = getSemanasMes(globalFiltroMes, globalFiltroAno);
+  let semanas = [];
+  if (globalFiltroTipo === 'INTERVALO' || globalFiltroMes === 'all' || globalFiltroAno === 'all') {
+    semanas = DB.semanaPagamento.filter(s => isPeriodoValido(s.mes, s.ano));
+    if (semanas.length === 0) {
+      const fallbackMes = (globalFiltroMes && globalFiltroMes !== 'all') ? globalFiltroMes : (new Date().getMonth() + 1);
+      const fallbackAno = (globalFiltroAno && globalFiltroAno !== 'all') ? globalFiltroAno : new Date().getFullYear();
+      semanas = getSemanasMes(fallbackMes, fallbackAno);
+    }
+  } else {
+    semanas = getSemanasMes(globalFiltroMes, globalFiltroAno);
+  }
 
   return `
   <div class="page-header">
@@ -1686,15 +1727,12 @@ function togglePonto(data) {
 // PAGAMENTOS (FOLHA SEMANAL)
 // ======================================
 function pagePagamentos() {
-  const now = new Date();
-  if (!globalFiltroMes) globalFiltroMes = now.getMonth() + 1;
-  if (!globalFiltroAno) globalFiltroAno = now.getFullYear();
-
-  // Garante que as semanas do mês/ano selecionado existam no DB
-  getSemanasMes(globalFiltroMes, globalFiltroAno);
+  if (globalFiltroMes !== 'all' && globalFiltroAno !== 'all' && globalFiltroTipo === 'MENSAL') {
+    getSemanasMes(globalFiltroMes, globalFiltroAno);
+  }
 
   const semanas = DB.semanaPagamento;
-  const semanasMes = semanas.filter(s => s.mes === globalFiltroMes && s.ano === globalFiltroAno);
+  const semanasMes = semanas.filter(s => isPeriodoValido(s.mes, s.ano));
 
   return `
   <div class="page-header">
@@ -1879,21 +1917,8 @@ function deletePagamento(id) {
 // ======================================
 // DESPESAS
 // ======================================
-let despesasFiltroMes = null;
-let despesasFiltroAno = null;
-
 function pageDespesas() {
-  const now = new Date();
-  if (despesasFiltroMes === null) despesasFiltroMes = globalFiltroMes || (now.getMonth() + 1);
-  if (despesasFiltroAno === null) despesasFiltroAno = globalFiltroAno || now.getFullYear();
-
-  const filtered = DB.despesas.filter(d => {
-    if (!d.data) return false;
-    const [y, monthVal] = d.data.split('-').map(Number);
-    const matchMes = (despesasFiltroMes === 'all' || monthVal == despesasFiltroMes);
-    const matchAno = (despesasFiltroAno === 'all' || y == despesasFiltroAno);
-    return matchMes && matchAno;
-  });
+  const filtered = DB.despesas.filter(d => isDataValida(d.data));
 
   const rows = [...filtered].sort((a,b)=>b.id-a.id).map(d => {
     const banco = d.bancoId ? DB.bancos.find(b => b.id === d.bancoId) : null;
@@ -1917,23 +1942,7 @@ function pageDespesas() {
     </div>
   </div>
   <div class="page-body">
-    <!-- Filtros de Pesquisa -->
-    <div class="card" style="margin-bottom: 20px; padding: 16px;">
-      <div class="grid-2" style="gap: 14px;">
-        <div class="form-group" style="margin-bottom: 0;">
-          <label style="margin-bottom: 4px;">Filtrar por Mês</label>
-          <select id="despesasFiltroMes" onchange="onDespesasPeriodChange()">
-            ${renderMonthSelectOptions(despesasFiltroMes, true)}
-          </select>
-        </div>
-        <div class="form-group" style="margin-bottom: 0;">
-          <label style="margin-bottom: 4px;">Filtrar por Ano</label>
-          <select id="despesasFiltroAno" onchange="onDespesasPeriodChange()">
-            ${renderYearSelectOptions(despesasFiltroAno, true)}
-          </select>
-        </div>
-      </div>
-    </div>
+    ${renderPeriodFilterCard('Visualizar Período')}
 
     ${filtered.length === 0
       ? `<div class="empty-state"><div class="empty-icon">📋</div><p class="empty-title">Nenhuma despesa registrada para este período</p></div>`
@@ -1943,18 +1952,6 @@ function pageDespesas() {
         </table></div>`
     }
   </div>`;
-}
-
-function onDespesasPeriodChange() {
-  const mesSelect = document.getElementById('despesasFiltroMes');
-  const anoSelect = document.getElementById('despesasFiltroAno');
-  if (mesSelect && anoSelect) {
-    const valMes = mesSelect.value;
-    const valAno = anoSelect.value;
-    despesasFiltroMes = valMes === 'all' ? 'all' : parseInt(valMes);
-    despesasFiltroAno = valAno === 'all' ? 'all' : parseInt(valAno);
-    renderPage('despesas');
-  }
 }
 
 function modalNovaDespesa() {
@@ -2053,24 +2050,28 @@ function deleteDespesa(id) {
 // MÓDULO PESSOAL
 // ======================================
 function pagePessoalDashboard() {
-  const now = new Date();
-  if (!globalFiltroMes) globalFiltroMes = now.getMonth() + 1;
-  if (!globalFiltroAno) globalFiltroAno = now.getFullYear();
-
   const mes = globalFiltroMes;
   const ano = globalFiltroAno;
 
-  const gastosMes = DB.gastosPessoais.filter(g => g.mesRef === mes && g.anoRef === ano);
+  const gastosMes = DB.gastosPessoais.filter(g => isPeriodoValido(g.mesRef, g.anoRef));
   const totalFixos    = gastosMes.filter(g => g.tipo === 'FIXO').reduce((s,g) => s+g.valor, 0);
   const totalVarjiaveis = gastosMes.filter(g => g.tipo === 'VARIAVEL').reduce((s,g) => s+g.valor, 0);
   const totalGastos   = totalFixos + totalVarjiaveis;
-  const orc = DB.orcamentoMensal.find(o => o.mes === mes && o.ano === ano);
-  const rendaPrev = orc?.rendaPrevista || 0;
+  
+  let rendaPrev = 0;
+  if (globalFiltroTipo === 'INTERVALO') {
+    rendaPrev = DB.orcamentoMensal
+      .filter(o => isPeriodoValido(o.mes, o.ano))
+      .reduce((s, o) => s + o.rendaPrevista, 0);
+  } else {
+    const orc = DB.orcamentoMensal.find(o => isPeriodoValido(o.mes, o.ano));
+    rendaPrev = orc?.rendaPrevista || 0;
+  }
   const saldoLivre = rendaPrev - totalGastos;
 
   return `
   <div class="page-header">
-    <div class="page-title"><h2>🏠 Dashboard Pessoal</h2><p>Controle financeiro da casa — ${monthName(mes)}/${ano}</p></div>
+    <div class="page-title"><h2>🏠 Dashboard Pessoal</h2><p>Controle financeiro da casa — ${getPeriodoFormatado()}</p></div>
     <div class="page-actions">
       <button class="btn-secondary" onclick="modalOrcamento()">⚙️ Configurar Orçamento</button>
     </div>
@@ -2125,16 +2126,9 @@ function pageGastosFixos()     { return pageGastos('FIXO'); }
 function pageGastosVarjaveis() { return pageGastos('VARIAVEL'); }
 
 function pageGastos(tipo) {
-  const now = new Date();
-  if (!globalFiltroMes) globalFiltroMes = now.getMonth() + 1;
-  if (!globalFiltroAno) globalFiltroAno = now.getFullYear();
-
-  const mes = globalFiltroMes;
-  const ano = globalFiltroAno;
-
   const icon  = tipo === 'FIXO' ? '🔒' : '🛒';
   const label = tipo === 'FIXO' ? 'Gastos Fixos' : 'Gastos Variáveis';
-  const gastos = DB.gastosPessoais.filter(g => g.tipo === tipo && g.mesRef === mes && g.anoRef === ano);
+  const gastos = DB.gastosPessoais.filter(g => g.tipo === tipo && isPeriodoValido(g.mesRef, g.anoRef));
   const total  = gastos.reduce((s,g) => s+g.valor, 0);
 
   const rows = gastos.map(g => `<tr>
@@ -2146,7 +2140,7 @@ function pageGastos(tipo) {
 
   return `
   <div class="page-header">
-    <div class="page-title"><h2>${icon} ${label}</h2><p>${monthName(mes)}/${ano}</p></div>
+    <div class="page-title"><h2>${icon} ${label}</h2><p>${getPeriodoFormatado()}</p></div>
     <div class="page-actions">
       <button class="btn-primary" onclick="modalNovoGasto('${tipo}')">➕ Adicionar</button>
     </div>
@@ -2270,14 +2264,13 @@ function initCharts() {
   const entCanvas = document.getElementById('chartEntidades');
   if (entCanvas) {
     destroyChart('chartEntidades');
-    const now = new Date();
-    const mes = globalFiltroMes || (now.getMonth() + 1);
-    const ano = globalFiltroAno || now.getFullYear();
+    const mes = globalFiltroMes;
+    const ano = globalFiltroAno;
     const ents  = DB.entidades.filter(e => e.tipo !== 'CAIXA');
     const vals  = ents.map(e => calcConsumoEntidade(e.id, mes, ano) / 100);
     const hasData = vals.some(v => v > 0);
     if (!hasData) {
-      entCanvas.parentElement.innerHTML = `<div class="empty-state"><div class="empty-icon">🎯</div><p class="empty-title" style="font-size:14px">Sem recebimentos este mês</p></div>`;
+      entCanvas.parentElement.innerHTML = `<div class="empty-state"><div class="empty-icon">🎯</div><p class="empty-title" style="font-size:14px">Sem recebimentos neste período</p></div>`;
     } else {
       chartInstances['chartEntidades'] = new Chart(entCanvas, {
         type: 'doughnut',
