@@ -143,6 +143,10 @@ CREATE TABLE IF NOT EXISTS "gastosPessoais" (
   "data" text,
   "mesRef" integer,
   "anoRef" integer,
+  "status" text DEFAULT 'PENDENTE',
+  "parcelaNum" integer DEFAULT 1,
+  "parcelaTotal" integer DEFAULT 1,
+  "grupoParcelaId" bigint,
   "criado" text
 );
 

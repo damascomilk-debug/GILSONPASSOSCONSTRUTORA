@@ -675,8 +675,7 @@ function renderPage(page) {
     case 'agenda':          el.innerHTML = pageAgenda(); break;
     case 'configuracoes':   el.innerHTML = pageConfiguracoes(); break;
     case 'pessoal-dashboard': el.innerHTML = pagePessoalDashboard(); break;
-    case 'gastos-fixos':    el.innerHTML = pageGastosFixos(); break;
-    case 'gastos-variaveis': el.innerHTML = pageGastosVarjaveis(); break;
+    case 'pessoal-despesas': el.innerHTML = pagePessoalDespesas(); break;
     default: el.innerHTML = '<div class="page-body"><p>Página não encontrada.</p></div>';
   }
   // init charts after render
@@ -2054,9 +2053,10 @@ function pagePessoalDashboard() {
   const ano = globalFiltroAno;
 
   const gastosMes = DB.gastosPessoais.filter(g => isPeriodoValido(g.mesRef, g.anoRef));
-  const totalFixos    = gastosMes.filter(g => g.tipo === 'FIXO').reduce((s,g) => s+g.valor, 0);
-  const totalVarjiaveis = gastosMes.filter(g => g.tipo === 'VARIAVEL').reduce((s,g) => s+g.valor, 0);
-  const totalGastos   = totalFixos + totalVarjiaveis;
+  const totalGastos = gastosMes.reduce((s, g) => s + g.valor, 0);
+  
+  const totalPago = gastosMes.filter(g => g.status === 'PAGO').reduce((s, g) => s + g.valor, 0);
+  const totalPendente = gastosMes.filter(g => g.status !== 'PAGO').reduce((s, g) => s + g.valor, 0);
   
   let rendaPrev = 0;
   if (globalFiltroTipo === 'INTERVALO') {
@@ -2100,19 +2100,19 @@ function pagePessoalDashboard() {
     </div>
     <div class="grid-2">
       <div class="card">
-        <div class="card-title">🔒 Fixos vs 🛒 Variáveis</div>
+        <div class="card-title">🟢 Pago vs 🟠 Pendente</div>
         <div class="chart-container"><canvas id="chartPessoal"></canvas></div>
-        <div id="chartPessoalData" style="display:none">${JSON.stringify({fixos:totalFixos,variaveis:totalVarjiaveis})}</div>
+        <div id="chartPessoalData" style="display:none">${JSON.stringify({pago:totalPago,pendente:totalPendente})}</div>
       </div>
       <div class="card">
-        <div class="card-title">📋 Gastos do Mês</div>
+        <div class="card-title">📋 Gastos do Período</div>
         ${gastosMes.length === 0
           ? `<div class="empty-state"><div class="empty-icon">🏠</div><p class="empty-title">Nenhum gasto registrado</p></div>`
           : `<div class="table-wrap"><table>
-              <thead><tr><th>Descrição</th><th>Tipo</th><th>Valor</th></tr></thead>
+              <thead><tr><th>Descrição</th><th>Status</th><th>Valor</th></tr></thead>
               <tbody>${gastosMes.map(g=>`<tr>
-                <td>${g.descricao}</td>
-                <td><span class="badge ${g.tipo==='FIXO'?'badge-blue':'badge-orange'}">${g.tipo}</span></td>
+                <td>${g.descricao} ${(g.parcelaTotal > 1) ? `(${g.parcelaNum}/${g.parcelaTotal})` : ''}</td>
+                <td><span class="badge ${g.status==='PAGO'?'badge-green':'badge-orange'}">${g.status || 'PENDENTE'}</span></td>
                 <td class="td-number" style="color:var(--danger)">${fmt(g.valor)}</td>
               </tr>`).join('')}</tbody>
             </table></div>`
@@ -2122,27 +2122,31 @@ function pagePessoalDashboard() {
   </div>`;
 }
 
-function pageGastosFixos()     { return pageGastos('FIXO'); }
-function pageGastosVarjaveis() { return pageGastos('VARIAVEL'); }
+function pagePessoalDespesas() {
+  const gastos = DB.gastosPessoais.filter(g => isPeriodoValido(g.mesRef, g.anoRef));
+  const total = gastos.reduce((s, g) => s + g.valor, 0);
 
-function pageGastos(tipo) {
-  const icon  = tipo === 'FIXO' ? '🔒' : '🛒';
-  const label = tipo === 'FIXO' ? 'Gastos Fixos' : 'Gastos Variáveis';
-  const gastos = DB.gastosPessoais.filter(g => g.tipo === tipo && isPeriodoValido(g.mesRef, g.anoRef));
-  const total  = gastos.reduce((s,g) => s+g.valor, 0);
-
-  const rows = gastos.map(g => `<tr>
-    <td>${g.descricao}</td>
-    <td class="td-number" style="color:var(--danger)">${fmt(g.valor)}</td>
-    <td>${fmtDate(g.data)}</td>
-    <td class="td-actions"><button class="btn-icon" onclick="deleteGasto(${g.id})">🗑️</button></td>
-  </tr>`).join('');
+  const rows = gastos.map(g => {
+    const isPaid = g.status === 'PAGO';
+    const statusBadge = `<span class="badge ${isPaid ? 'badge-green' : 'badge-orange'}" style="cursor: pointer; user-select: none;" onclick="toggleStatusGastoPessoal(${g.id})">${g.status || 'PENDENTE'}</span>`;
+    const parcLabel = (g.parcelaTotal > 1) ? ` <span class="badge badge-gray" style="font-size:10px">${g.parcelaNum}/${g.parcelaTotal}</span>` : '';
+    
+    return `<tr>
+      <td>${g.descricao}${parcLabel}</td>
+      <td class="td-number" style="color:var(--danger)">${fmt(g.valor)}</td>
+      <td>${fmtDate(g.data)}</td>
+      <td>${statusBadge}</td>
+      <td class="td-actions">
+        <button class="btn-icon" onclick="deleteGastoPessoal(${g.id})" title="Excluir">🗑️</button>
+      </td>
+    </tr>`;
+  }).join('');
 
   return `
   <div class="page-header">
-    <div class="page-title"><h2>${icon} ${label}</h2><p>${getPeriodoFormatado()}</p></div>
+    <div class="page-title"><h2>📋 Despesas Pessoais</h2><p>${getPeriodoFormatado()}</p></div>
     <div class="page-actions">
-      <button class="btn-primary" onclick="modalNovoGasto('${tipo}')">➕ Adicionar</button>
+      <button class="btn-primary" onclick="modalNovaDespesaPessoal()">➕ Nova Despesa</button>
     </div>
   </div>
   <div class="page-body">
@@ -2150,55 +2154,215 @@ function pageGastos(tipo) {
 
     <div class="stat-card" style="margin-bottom:20px;max-width:300px">
       <div class="stat-icon red">📉</div>
-      <div class="stat-info"><div class="stat-label">Total ${label}</div><div class="stat-value" style="color:var(--danger)">${fmt(total)}</div></div>
+      <div class="stat-info">
+        <div class="stat-label">Total de Despesas</div>
+        <div class="stat-value" style="color:var(--danger)">${fmt(total)}</div>
+      </div>
     </div>
+    
     ${gastos.length === 0
-      ? `<div class="empty-state"><div class="empty-icon">${icon}</div><p class="empty-title">Nenhum gasto registrado</p></div>`
+      ? `<div class="empty-state"><div class="empty-icon">📋</div><p class="empty-title">Nenhuma despesa registrada para este período</p></div>`
       : `<div class="table-wrap"><table>
-          <thead><tr><th>Descrição</th><th>Valor</th><th>Data</th><th>Ação</th></tr></thead>
+          <thead><tr><th>Descrição</th><th>Valor</th><th>Data</th><th>Status</th><th>Ações</th></tr></thead>
           <tbody>${rows}</tbody>
         </table></div>`
     }
   </div>`;
 }
 
-function modalNovoGasto(tipo) {
-  openModal(`Novo Gasto — ${tipo === 'FIXO' ? 'Fixo' : 'Variável'}`, `
-    <div class="form-group"><label>Descrição *</label><input id="gDesc" placeholder="${tipo==='FIXO'?'Ex: Aluguel, Energia, Internet...':'Ex: Mercado, Lazer, Restaurante...'}" /></div>
-    <div class="form-group"><label>Valor (R$) *</label>
-      <div class="input-prefix"><span>R$</span><input id="gValor" class="money-input" placeholder="0,00" style="padding-left:38px" /></div>
+function toggleStatusGastoPessoal(id) {
+  const gasto = DB.gastosPessoais.find(g => g.id === id);
+  if (gasto) {
+    gasto.status = (gasto.status === 'PAGO') ? 'PENDENTE' : 'PAGO';
+    saveDB(DB);
+    showToast(gasto.status === 'PAGO' ? 'Despesa marcada como paga!' : 'Despesa marcada como pendente.');
+    renderPage('pessoal-despesas');
+  }
+}
+
+function modalNovaDespesaPessoal() {
+  openModal('Nova Despesa Pessoal', `
+    <div class="form-group">
+      <label>Descrição (Rápido / Preset) *</label>
+      <select id="pdGastoPreset" onchange="toggleGastoPreset()">
+        <option value="💧 Água">💧 Água</option>
+        <option value="⚡ Luz">⚡ Luz</option>
+        <option value="🌐 Internet">🌐 Internet</option>
+        <option value="🏠 Aluguel">🏠 Aluguel</option>
+        <option value="🛒 Mercado">🛒 Mercado</option>
+        <option value="⛽ Combustível">⛽ Combustível</option>
+        <option value="💳 Fatura de Cartão">💳 Fatura de Cartão</option>
+        <option value="📺 Assinaturas / Streaming">📺 Assinaturas / Streaming</option>
+        <option value="🏢 IPTU">🏢 IPTU</option>
+        <option value="🚗 IPVA">🚗 IPVA</option>
+        <option value="CUSTOM">✍️ Outro (Customizado)...</option>
+      </select>
     </div>
-    <div class="form-group"><label>Data</label><input type="date" id="gData" value="${todayStr()}" /></div>
+    <div class="form-group hidden" id="pdDescCustomWrap">
+      <label>Descrição Customizada *</label>
+      <input id="pdDescCustom" placeholder="Ex: Farmácia, Petshop, Academia..." />
+    </div>
+    <div class="form-group">
+      <label>Valor (R$) *</label>
+      <div class="input-prefix"><span>R$</span><input id="pdValor" class="money-input" placeholder="0,00" style="padding-left:38px" /></div>
+    </div>
+    <div class="form-group">
+      <label>Data *</label>
+      <input type="date" id="pdData" value="${todayStr()}" />
+    </div>
+    <div class="form-group">
+      <label>Tipo de Pagamento</label>
+      <select id="pdTipoPagamento" onchange="toggleParcelas()">
+        <option value="UNICA">Parcela Única</option>
+        <option value="PARCELADA">Parcelada</option>
+      </select>
+    </div>
+    <div class="form-group hidden" id="pdParcelasWrap">
+      <label>Número de Parcelas *</label>
+      <input type="number" id="pdParcelasCount" min="2" max="120" value="3" />
+    </div>
     <div class="modal-footer">
       <button class="btn-secondary" onclick="closeModal()">Cancelar</button>
-      <button class="btn-primary" onclick="salvarGasto('${tipo}')">💾 Salvar</button>
+      <button class="btn-primary" onclick="salvarDespesaPessoal()">💾 Salvar</button>
     </div>
   `);
 }
 
-function salvarGasto(tipo) {
-  const desc  = document.getElementById('gDesc').value.trim();
-  const valor = getMoneyValue('gValor');
-  const data  = document.getElementById('gData').value;
-  if (!desc)  { showToast('Descrição obrigatória', 'error'); return; }
-  if (!valor) { showToast('Informe o valor', 'error'); return; }
-  const [y, m] = data.split('-').map(Number);
-  DB.gastosPessoais.push({
-    id: nextId('gastosPessoais'),
-    tipo, descricao: desc, valor, data,
-    mesRef: m, anoRef: y, criado: new Date().toISOString()
-  });
-  saveDB(DB);
-  closeModal();
-  showToast('Gasto registrado!');
-  navigate(tipo === 'FIXO' ? 'gastos-fixos' : 'gastos-variaveis');
+function toggleGastoPreset() {
+  const select = document.getElementById('pdGastoPreset');
+  const wrap = document.getElementById('pdDescCustomWrap');
+  if (select && wrap) {
+    if (select.value === 'CUSTOM') {
+      wrap.classList.remove('hidden');
+    } else {
+      wrap.classList.add('hidden');
+    }
+  }
 }
 
-function deleteGasto(id) {
-  DB.gastosPessoais = DB.gastosPessoais.filter(g => g.id !== id);
-  saveDB(DB);
-  showToast('Gasto excluído.', 'warning');
-  renderPage(currentPage);
+function toggleParcelas() {
+  const type = document.getElementById('pdTipoPagamento')?.value;
+  const wrap = document.getElementById('pdParcelasWrap');
+  if (wrap) {
+    if (type === 'PARCELADA') wrap.classList.remove('hidden');
+    else wrap.classList.add('hidden');
+  }
+}
+
+function salvarDespesaPessoal() {
+  const presetSelect = document.getElementById('pdGastoPreset');
+  const customDesc = document.getElementById('pdDescCustom')?.value.trim();
+  const valor = getMoneyValue('pdValor');
+  const data = document.getElementById('pdData').value;
+  const tipoPagamento = document.getElementById('pdTipoPagamento').value;
+  
+  let desc = presetSelect.value;
+  if (desc === 'CUSTOM') {
+    desc = customDesc;
+  }
+  
+  if (!desc) { showToast('Informe a descrição da despesa', 'error'); return; }
+  if (!valor) { showToast('Informe o valor', 'error'); return; }
+  if (!data) { showToast('Informe a data', 'error'); return; }
+
+  const baseDate = new Date(data + 'T12:00:00');
+  
+  if (tipoPagamento === 'UNICA') {
+    const [y, m] = data.split('-').map(Number);
+    DB.gastosPessoais.push({
+      id: nextId('gastosPessoais'),
+      tipo: 'FIXO',
+      descricao: desc,
+      valor,
+      data,
+      mesRef: m,
+      anoRef: y,
+      status: 'PENDENTE',
+      parcelaNum: 1,
+      parcelaTotal: 1,
+      grupoParcelaId: null,
+      criado: new Date().toISOString()
+    });
+    saveDB(DB);
+  } else {
+    const N = parseInt(document.getElementById('pdParcelasCount').value);
+    if (!N || N < 2) { showToast('O número de parcelas deve ser pelo menos 2', 'error'); return; }
+    
+    const grupoId = Date.now();
+    let nextSeq = DB.seq['gastosPessoais'] || 1;
+    
+    for (let idx = 1; idx <= N; idx++) {
+      const currentDate = new Date(baseDate.getFullYear(), baseDate.getMonth() + (idx - 1), baseDate.getDate());
+      const yyyy = currentDate.getFullYear();
+      const mm = currentDate.getMonth() + 1;
+      const mmStr = String(mm).padStart(2, '0');
+      const ddStr = String(currentDate.getDate()).padStart(2, '0');
+      const dateStr = `${yyyy}-${mmStr}-${ddStr}`;
+      
+      DB.gastosPessoais.push({
+        id: nextSeq++,
+        tipo: 'FIXO',
+        descricao: desc,
+        valor,
+        data: dateStr,
+        mesRef: mm,
+        anoRef: yyyy,
+        status: 'PENDENTE',
+        parcelaNum: idx,
+        parcelaTotal: N,
+        grupoParcelaId: grupoId,
+        criado: new Date().toISOString()
+      });
+    }
+    DB.seq['gastosPessoais'] = nextSeq;
+    saveDB(DB);
+  }
+  
+  closeModal();
+  showToast('Despesa pessoal salva com sucesso!');
+  renderPage('pessoal-despesas');
+}
+
+function deleteGastoPessoal(id) {
+  const gasto = DB.gastosPessoais.find(g => g.id === id);
+  if (!gasto) return;
+
+  if (gasto.grupoParcelaId) {
+    openModal('Excluir Despesa Parcelada', `
+      <div style="margin-bottom: 16px; font-size: 14px; line-height: 1.5;">
+        Esta despesa faz parte de um parcelamento (parcela ${gasto.parcelaNum}/${gasto.parcelaTotal}).<br>
+        O que você deseja fazer?
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 10px;">
+        <button class="btn-primary" onclick="confirmDeleteGastoPessoal(${id}, 'SINGLE')">🗑️ Excluir apenas esta parcela</button>
+        <button class="btn-warning" onclick="confirmDeleteGastoPessoal(${id}, 'ALL')">🗑️ Excluir todo o parcelamento</button>
+        <button class="btn-secondary" onclick="closeModal()">Cancelar</button>
+      </div>
+    `);
+  } else {
+    confirm_action('Excluir esta despesa?', () => {
+      DB.gastosPessoais = DB.gastosPessoais.filter(g => g.id !== id);
+      saveDB(DB);
+      showToast('Despesa excluída.', 'warning');
+      renderPage('pessoal-despesas');
+    });
+  }
+}
+
+function confirmDeleteGastoPessoal(id, mode) {
+  const gasto = DB.gastosPessoais.find(g => g.id === id);
+  if (gasto) {
+    if (mode === 'ALL') {
+      DB.gastosPessoais = DB.gastosPessoais.filter(g => g.grupoParcelaId !== gasto.grupoParcelaId);
+      showToast('Todo o parcelamento foi excluído.', 'warning');
+    } else {
+      DB.gastosPessoais = DB.gastosPessoais.filter(g => g.id !== id);
+      showToast('Parcela excluída com sucesso.', 'warning');
+    }
+    saveDB(DB);
+    closeModal();
+    renderPage('pessoal-despesas');
+  }
 }
 
 function modalOrcamento() {
@@ -2293,16 +2457,16 @@ function initCharts() {
   if (pesCanvas) {
     destroyChart('chartPessoal');
     const dataEl = document.getElementById('chartPessoalData');
-    const data   = dataEl ? JSON.parse(dataEl.textContent) : { fixos: 0, variaveis: 0 };
-    if (!data.fixos && !data.variaveis) {
-      pesCanvas.parentElement.innerHTML = `<div class="empty-state"><div class="empty-icon">🏠</div><p class="empty-title" style="font-size:14px">Sem gastos registrados</p></div>`;
+    const data   = dataEl ? JSON.parse(dataEl.textContent) : { pago: 0, pendente: 0 };
+    if (!data.pago && !data.pendente) {
+      pesCanvas.parentElement.innerHTML = `<div class="empty-state"><div class="empty-icon">🏠</div><p class="empty-title" style="font-size:14px">Sem despesas registradas</p></div>`;
     } else {
       chartInstances['chartPessoal'] = new Chart(pesCanvas, {
         type: 'doughnut',
         data: {
-          labels: ['Gastos Fixos', 'Gastos Variáveis'],
-          datasets: [{ data: [data.fixos/100, data.variaveis/100],
-            backgroundColor: currentTheme === 'tema3' ? ['#7C3AED','#A78BFA'] : ['#3B82F6','#D4722A'], 
+          labels: ['Pago', 'Pendente'],
+          datasets: [{ data: [data.pago/100, data.pendente/100],
+            backgroundColor: currentTheme === 'tema3' ? ['#10B981','#F59E0B'] : ['#10B981','#F59E0B'], 
             borderColor: currentTheme === 'tema3' ? '#FFFFFF' : '#131929', 
             borderWidth: 3 }]
         },
