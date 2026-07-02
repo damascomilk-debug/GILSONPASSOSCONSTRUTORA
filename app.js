@@ -1563,9 +1563,12 @@ function pagePonto() {
           </select>
         </div>
         <div class="form-group"><label>Semana de Referência</label>
-          <select id="pontoSemana" onchange="renderPontoCalendar()">
-            ${semanas.map(s => `<option value="${s.id}">Semana ${s.numero} — ${fmtDate(s.dataInicio)} a ${fmtDate(s.dataFim)}</option>`).join('')}
-          </select>
+          <div style="display: flex; gap: 8px;">
+            <select id="pontoSemana" onchange="renderPontoCalendar()" style="flex: 1; margin-bottom: 0;">
+              ${semanas.map(s => `<option value="${s.id}">Semana ${s.numero} — ${fmtDate(s.dataInicio)} a ${fmtDate(s.dataFim)}</option>`).join('')}
+            </select>
+            <button class="btn-secondary" onclick="modalEditarSemana()" title="Editar período da semana" style="padding: 0 12px; height: 42px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">✏️</button>
+          </div>
         </div>
       </div>
       <div class="form-group">
@@ -3343,6 +3346,66 @@ function toggleEventoStatus(id, dateStr) {
     
     if (typeof currentPage !== 'undefined' && currentPage === 'agenda') {
       renderPage('agenda');
+    }
+  }
+}
+
+function modalEditarSemana() {
+  const semId = parseInt(document.getElementById('pontoSemana')?.value);
+  if (!semId) { showToast('Selecione uma semana primeiro', 'warning'); return; }
+  const sem = DB.semanaPagamento.find(s => s.id === semId);
+  if (!sem) { showToast('Semana não encontrada', 'error'); return; }
+
+  openModal('Editar Período da Semana', `
+    <div class="info-box" style="margin-bottom: 16px;">
+      📅 <strong>Semana ${sem.numero}</strong> — Período de referência para o cartão de ponto.
+    </div>
+    <div class="form-group">
+      <label>Data de Início *</label>
+      <input type="date" id="editSemDataInicio" value="${sem.dataInicio}" />
+    </div>
+    <div class="form-group">
+      <label>Data de Fim *</label>
+      <input type="date" id="editSemDataFim" value="${sem.dataFim}" />
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="closeModal()">Cancelar</button>
+      <button class="btn-primary" onclick="salvarPeriodoSemana(${semId})">💾 Salvar Alterações</button>
+    </div>
+  `);
+}
+
+function salvarPeriodoSemana(semId) {
+  const dataInicio = document.getElementById('editSemDataInicio').value;
+  const dataFim = document.getElementById('editSemDataFim').value;
+
+  if (!dataInicio || !dataFim) {
+    showToast('Ambas as datas são obrigatórias', 'error');
+    return;
+  }
+
+  if (new Date(dataInicio) > new Date(dataFim)) {
+    showToast('A data de início não pode ser posterior à data de fim', 'error');
+    return;
+  }
+
+  const sem = DB.semanaPagamento.find(s => s.id === semId);
+  if (sem) {
+    sem.dataInicio = dataInicio;
+    sem.dataFim = dataFim;
+    
+    saveDB(DB);
+    closeModal();
+    showToast('Período da semana atualizado com sucesso!');
+    
+    // Recarrega a página de ponto para atualizar o select e recriar o calendário de dias
+    renderPage('ponto');
+    
+    // Seleciona a mesma semana no select
+    const select = document.getElementById('pontoSemana');
+    if (select) {
+      select.value = semId;
+      renderPontoCalendar();
     }
   }
 }
